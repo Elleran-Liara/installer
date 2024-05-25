@@ -1,0 +1,103 @@
+#!/bin/bash
+set -e
+
+# Function to prompt user and update a configuration field
+update_config() {
+    local config_file="$1"
+    local yaml_path="$2"
+    local prompt="$3"
+    
+    local new_value
+    new_value=$(dialog --inputbox "$prompt" 8 40 3>&1 1>&2 2>&3 3>&-)
+    
+    yq eval --inplace "$yaml_path = \"$new_value\"" "$config_file"
+    echo "Updated $yaml_path to $new_value in $config_file"
+}
+
+# Use dialog to present a list of choices to the user
+CHOICE=$(dialog --menu "Choose a configuration file:" 15 55 4 \
+1 "configCC1.yml" \
+2 "configVC1.yml" \
+3 "configDVRS1.yml" \
+4 "configCONV1.yml" 3>&1 1>&2 2>&3 3>&-)
+
+# Perform actions based on the user's choice
+case $CHOICE in
+  1)
+    CONFIG_FILE="/opt/centrunk/configs/configCC1.yml"
+    ;;
+  2)
+    CONFIG_FILE="/opt/centrunk/configs/configVC1.yml"
+    ;;
+  3)
+    CONFIG_FILE="/opt/centrunk/configs/configDVRS1.yml"
+    ;;
+  4)
+    CONFIG_FILE="/opt/centrunk/configs/configCONV1.yml"
+    ;;
+  *)
+    echo "Invalid choice"
+    exit 1
+    ;;
+esac
+
+# Check if the selected configuration file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Configuration file $CONFIG_FILE does not exist."
+    exit 1
+fi
+
+echo "You selected $CONFIG_FILE"
+
+# Main loop to update configuration values
+while true; do
+    update_config "$CONFIG_FILE" ".network.restAddress" "Enter the new network.restAddress:"
+    update_config "$CONFIG_FILE" ".system.identity" "Enter the new system.identity:"
+    update_config "$CONFIG_FILE" ".system.config.voiceChNo[0].restAddress" "Enter the new system.config.voiceChNo.restAddress:"
+    update_config "$CONFIG_FILE" ".system.config.siteId" "Enter the new system.config.siteId:"
+    
+    # Ask the user if they want to edit more fields
+    dialog --yesno "Do you want to edit more configuration fields?" 7 40
+    if [ $? -ne 0 ]; then
+        break
+    fi
+    
+    # Allow the user to select another field to edit
+    FIELD_CHOICE=$(dialog --menu "Choose a field to edit:" 15 55 6 \
+    1 "network.restAddress" \
+    2 "system.identity" \
+    3 "system.config.voiceChNo.restAddress" \
+    4 "system.config.siteId" \
+    5 "Edit another field" \
+    6 "Exit" 3>&1 1>&2 2>&3 3>&-)
+    
+    case $FIELD_CHOICE in
+      1)
+        update_config "$CONFIG_FILE" ".network.restAddress" "Enter the new network.restAddress:"
+        ;;
+      2)
+        update_config "$CONFIG_FILE" ".system.identity" "Enter the new system.identity:"
+        ;;
+      3)
+        update_config "$CONFIG_FILE" ".system.config.voiceChNo[0].restAddress" "Enter the new system.config.voiceChNo.restAddress:"
+        ;;
+      4)
+        update_config "$CONFIG_FILE" ".system.config.siteId" "Enter the new system.config.siteId:"
+        ;;
+      5)
+        # Prompt the user to enter the YAML path and the new value
+        YAML_PATH=$(dialog --inputbox "Enter the YAML path to the field you want to edit:" 8 40 3>&1 1>&2 2>&3 3>&-)
+        PROMPT="Enter the new value for $YAML_PATH:"
+        update_config "$CONFIG_FILE" "$YAML_PATH" "$PROMPT"
+        ;;
+      6)
+        break
+        ;;
+      *)
+        echo "Invalid choice"
+        ;;
+    esac
+done
+
+# Ensure the script exits successfully
+exit 0

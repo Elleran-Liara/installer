@@ -1,0 +1,9 @@
+Package: centrunk
+Version: 1.0
+Section: base
+Priority: optional
+Architecture: all
+Depends: dialog, yq
+Maintainer: Your Name <your.email@example.com>
+Description: A package to select and update configuration files
+ This package allows the user to select a configuration file from a list and update specific fields.
