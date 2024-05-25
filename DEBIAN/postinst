@@ -1,103 +1,125 @@
 #!/bin/bash
-set -e
 
-# Function to prompt user and update a configuration field
-update_config() {
-    local config_file="$1"
-    local yaml_path="$2"
-    local prompt="$3"
-    
-    local new_value
-    new_value=$(dialog --inputbox "$prompt" 8 40 3>&1 1>&2 2>&3 3>&-)
-    
-    yq eval --inplace "$yaml_path = \"$new_value\"" "$config_file"
-    echo "Updated $yaml_path to $new_value in $config_file"
-}
+# Create necessary directories
+mkdir -p /opt/centrunk/installer
+cd /opt/centrunk/installer
 
-# Use dialog to present a list of choices to the user
-CHOICE=$(dialog --menu "Choose a configuration file:" 15 55 4 \
-1 "configCC1.yml" \
-2 "configVC1.yml" \
-3 "configDVRS1.yml" \
-4 "configCONV1.yml" 3>&1 1>&2 2>&3 3>&-)
+# Download the GitHub repository as a ZIP file
+wget https://github.com/DVMProject/dvmhost/archive/refs/heads/master.zip
 
-# Perform actions based on the user's choice
-case $CHOICE in
-  1)
-    CONFIG_FILE="/opt/centrunk/configs/configCC1.yml"
-    ;;
-  2)
-    CONFIG_FILE="/opt/centrunk/configs/configVC1.yml"
-    ;;
-  3)
-    CONFIG_FILE="/opt/centrunk/configs/configDVRS1.yml"
-    ;;
-  4)
-    CONFIG_FILE="/opt/centrunk/configs/configCONV1.yml"
-    ;;
-  *)
-    echo "Invalid choice"
-    exit 1
-    ;;
+# Unzip the repository
+unzip master.zip
+
+# Move to the unzipped directory
+cd dvmhost-master
+
+# Use dialog to present choices to the user
+cmd=(dialog --menu "Choose the cross-compile option:" 22 76 16)
+options=(
+   1 "CROSS_COMPILE_ARM"
+   2 "CROSS_COMPILE_AARCH64"
+   3 "CROSS_COMPILE_RPI_ARM"
+   4 "Cancel"
+)
+choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
+
+clear
+
+# Create build directory and move to it
+mkdir -p /opt/centrunk/installer/build
+cd /opt/centrunk/installer/build
+
+# Execute the chosen cmake command
+case $choice in
+    1)
+        cmake /opt/centrunk/installer/dvmhost-master -DCROSS_COMPILE_ARM=1
+        ;;
+    2)
+        cmake /opt/centrunk/installer/dvmhost-master -DCROSS_COMPILE_AARCH64=1
+        ;;
+    3)
+        cmake /opt/centrunk/installer/dvmhost-master -DCROSS_COMPILE_RPI_ARM=1
+        ;;
+    4)
+        exit 0
+        ;;
 esac
 
-# Check if the selected configuration file exists
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Configuration file $CONFIG_FILE does not exist."
+# Compile the code
+make
+
+# Move the binaries to the target directory
+mkdir -p /opt/centrunk/dvmhost/
+mv dvmhost dvmcmd /opt/centrunk/dvmhost/
+
+
+# Configuration files location
+CONFIG_DIR="/opt/centrunk/configs"
+
+# Configuration files
+CONFIG_FILES=("configCC1.yml" "configVC1.yml" "configDVRS1.yml" "configCONV1.yml")
+
+# Create a dialog menu
+CHOICE=$(dialog --menu "Select Configuration File" 15 50 4 \
+1 "${CONFIG_FILES[0]}" \
+2 "${CONFIG_FILES[1]}" \
+3 "${CONFIG_FILES[2]}" \
+4 "${CONFIG_FILES[3]}" 3>&1 1>&2 2>&3)
+
+# Determine the selected file
+case $CHOICE in
+    1) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[0]}" ;;
+    2) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[1]}" ;;
+    3) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[2]}" ;;
+    4) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[3]}" ;;
+    *) echo "Invalid choice"; exit 1 ;;
+esac
+
+# Backup the original file before making changes
+cp $SELECTED_FILE "${SELECTED_FILE}.bak"
+
+# Prompt for new ID
+NEW_ID=$(dialog --inputbox "Enter the new ID:" 8 40 3>&1 1>&2 2>&3)
+
+# Check if NEW_ID is empty
+if [ -z "$NEW_ID" ]; then
+    dialog --msgbox "ID cannot be empty. Exiting." 10 30
+    clear
     exit 1
 fi
 
-echo "You selected $CONFIG_FILE"
+# Update the selected file with the new ID using yq
+yq eval ".network.id = \"$NEW_ID\"" -i $SELECTED_FILE
 
-# Main loop to update configuration values
-while true; do
-    update_config "$CONFIG_FILE" ".network.restAddress" "Enter the new network.restAddress:"
-    update_config "$CONFIG_FILE" ".system.identity" "Enter the new system.identity:"
-    update_config "$CONFIG_FILE" ".system.config.voiceChNo[0].restAddress" "Enter the new system.config.voiceChNo.restAddress:"
-    update_config "$CONFIG_FILE" ".system.config.siteId" "Enter the new system.config.siteId:"
-    
-    # Ask the user if they want to edit more fields
-    dialog --yesno "Do you want to edit more configuration fields?" 7 40
-    if [ $? -ne 0 ]; then
-        break
-    fi
-    
-    # Allow the user to select another field to edit
-    FIELD_CHOICE=$(dialog --menu "Choose a field to edit:" 15 55 6 \
-    1 "network.restAddress" \
-    2 "system.identity" \
-    3 "system.config.voiceChNo.restAddress" \
-    4 "system.config.siteId" \
-    5 "Edit another field" \
-    6 "Exit" 3>&1 1>&2 2>&3 3>&-)
-    
-    case $FIELD_CHOICE in
-      1)
-        update_config "$CONFIG_FILE" ".network.restAddress" "Enter the new network.restAddress:"
-        ;;
-      2)
-        update_config "$CONFIG_FILE" ".system.identity" "Enter the new system.identity:"
-        ;;
-      3)
-        update_config "$CONFIG_FILE" ".system.config.voiceChNo[0].restAddress" "Enter the new system.config.voiceChNo.restAddress:"
-        ;;
-      4)
-        update_config "$CONFIG_FILE" ".system.config.siteId" "Enter the new system.config.siteId:"
-        ;;
-      5)
-        # Prompt the user to enter the YAML path and the new value
-        YAML_PATH=$(dialog --inputbox "Enter the YAML path to the field you want to edit:" 8 40 3>&1 1>&2 2>&3 3>&-)
-        PROMPT="Enter the new value for $YAML_PATH:"
-        update_config "$CONFIG_FILE" "$YAML_PATH" "$PROMPT"
-        ;;
-      6)
-        break
-        ;;
-      *)
-        echo "Invalid choice"
-        ;;
-    esac
-done
+# Read back the modified data
+MODIFIED_DATA=$(cat $SELECTED_FILE)
 
-# Ensure the script exits successfully
+# Display the modified data
+dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
+
+# Close the dialog program
+clear
+
+
+# Ask user if they want to clean up the temporary files
+cmd=(dialog --menu "Cleanup temporary files?" 22 76 16)
+options=(
+   1 "Yes"
+   2 "No"
+)
+cleanup_choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
+
+clear
+
+# Cleanup based on user choice
+case $cleanup_choice in
+    1)
+        rm -rf /opt/centrunk/installer/master.zip
+        rm -rf /opt/centrunk/installer/
+        ;;
+    2)
+        echo "Skipping cleanup"
+        ;;
+esac
+
 exit 0
