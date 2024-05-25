@@ -1,5 +1,60 @@
 #!/bin/bash
 
+# Function to edit configuration file
+edit_config() {
+    # Configuration files location
+    CONFIG_DIR="/opt/centrunk/configs"
+
+    # Configuration files
+    CONFIG_FILES=("configCC1.yml" "configVC1.yml" "configDVRS1.yml" "configCONV1.yml")
+
+    # Create a dialog menu
+    CHOICE=$(dialog --menu "Select Configuration File" 15 50 4 \
+    1 "${CONFIG_FILES[0]}" \
+    2 "${CONFIG_FILES[1]}" \
+    3 "${CONFIG_FILES[2]}" \
+    4 "${CONFIG_FILES[3]}" 3>&1 1>&2 2>&3)
+
+    # Determine the selected file
+    case $CHOICE in
+        1) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[0]}" ;;
+        2) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[1]}" ;;
+        3) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[2]}" ;;
+        4) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[3]}" ;;
+        *) echo "Invalid choice"; exit 1 ;;
+    esac
+
+    # Backup the original file before making changes
+    cp $SELECTED_FILE "${SELECTED_FILE}.bak"
+
+    # Prompt for new ID, REST address, System Identity, Voice Channel Number REST address, and Site ID
+    NEW_ID=$(dialog --inputbox "Enter the new ID:" 8 40 3>&1 1>&2 2>&3)
+    NEW_REST_ADDRESS=$(dialog --inputbox "Enter the new REST Address:" 8 40 3>&1 1>&2 2>&3)
+    NEW_SYSTEM_IDENTITY=$(dialog --inputbox "Enter the new System Identity:" 8 40 3>&1 1>&2 2>&3)
+    NEW_VOICE_CH_REST_ADDRESS=$(dialog --inputbox "Enter the new Voice Channel Number REST Address:" 8 40 3>&1 1>&2 2>&3)
+    NEW_SITE_ID=$(dialog --inputbox "Enter the new Site ID:" 8 40 3>&1 1>&2 2>&3)
+
+    # Check if any of the inputs are empty
+    if [ -z "$NEW_ID" ] || [ -z "$NEW_REST_ADDRESS" ] || [ -z "$NEW_SYSTEM_IDENTITY" ] || [ -z "$NEW_VOICE_CH_REST_ADDRESS" ] || [ -z "$NEW_SITE_ID" ]; then
+        dialog --msgbox "All fields are required. Exiting." 10 40
+        clear
+        exit 1
+    fi
+
+    # Update the selected file with the new values using yq write
+    yq write -i $SELECTED_FILE 'network.id' "$NEW_ID"
+    yq write -i $SELECTED_FILE 'network.restAddress' "$NEW_REST_ADDRESS"
+    yq write -i $SELECTED_FILE 'system.identity' "$NEW_SYSTEM_IDENTITY"
+    yq write -i $SELECTED_FILE 'voiceChNo.restAddress' "$NEW_VOICE_CH_REST_ADDRESS"
+    yq write -i $SELECTED_FILE 'config.siteId' "$NEW_SITE_ID"
+
+    # Read back the modified data
+    MODIFIED_DATA=$(cat $SELECTED_FILE)
+
+    # Display the modified data
+    dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
+}
+
 # Create necessary directories
 mkdir -p /opt/centrunk/installer
 cd /opt/centrunk/installer
@@ -52,54 +107,8 @@ make
 mkdir -p /opt/centrunk/dvmhost/
 mv dvmhost dvmcmd /opt/centrunk/dvmhost/
 
-
-# Configuration files location
-CONFIG_DIR="/opt/centrunk/configs"
-
-# Configuration files
-CONFIG_FILES=("configCC1.yml" "configVC1.yml" "configDVRS1.yml" "configCONV1.yml")
-
-# Create a dialog menu
-CHOICE=$(dialog --menu "Select Configuration File" 15 50 4 \
-1 "${CONFIG_FILES[0]}" \
-2 "${CONFIG_FILES[1]}" \
-3 "${CONFIG_FILES[2]}" \
-4 "${CONFIG_FILES[3]}" 3>&1 1>&2 2>&3)
-
-# Determine the selected file
-case $CHOICE in
-    1) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[0]}" ;;
-    2) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[1]}" ;;
-    3) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[2]}" ;;
-    4) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[3]}" ;;
-    *) echo "Invalid choice"; exit 1 ;;
-esac
-
-# Backup the original file before making changes
-cp $SELECTED_FILE "${SELECTED_FILE}.bak"
-
-# Prompt for new ID
-NEW_ID=$(dialog --inputbox "Enter the new ID:" 8 40 3>&1 1>&2 2>&3)
-
-# Check if NEW_ID is empty
-if [ -z "$NEW_ID" ]; then
-    dialog --msgbox "ID cannot be empty. Exiting." 10 30
-    clear
-    exit 1
-fi
-
-# Update the selected file with the new ID using yq
-yq eval ".network.id = \"$NEW_ID\"" -i $SELECTED_FILE
-
-# Read back the modified data
-MODIFIED_DATA=$(cat $SELECTED_FILE)
-
-# Display the modified data
-dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
-
-# Close the dialog program
-clear
-
+# Call the function to edit the configuration file
+edit_config
 
 # Ask user if they want to clean up the temporary files
 cmd=(dialog --menu "Cleanup temporary files?" 22 76 16)
