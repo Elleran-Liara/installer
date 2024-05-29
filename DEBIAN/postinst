@@ -85,8 +85,27 @@ edit_config() {
     MODIFIED_DATA=$(cat $SELECTED_FILE)
 
     # Display the modified data
-    #dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
+    # dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
 }
+
+# Function to install a website
+install_website() {
+    # Create necessary directories
+    mkdir -p /var/www/dashboard
+
+    # Download the GitHub repository as a ZIP file
+    wget https://github.com/hannajohnsona/dashboard/archive/refs/heads/main.zip
+
+    # Unzip the repository
+    unzip main.zip
+
+    # Move the contents to the target directory
+    mv dashboard-main/* /var/www/dashboard/
+
+    # Clean up
+    rm -rf dashboard-main main.zip
+}
+
 # requirements menu for yq
 cmd=(dialog --menu "Choose requirements option:" 22 76 16)
 options=(   
@@ -106,6 +125,7 @@ case $requirements_choice in
         echo "Skipping Requirements"
         ;;
 esac
+
 # Pre-install menu for ZeroTier, Tailscale, or None
 cmd=(dialog --menu "Choose the preinstall option:" 22 76 16)
 options=(
@@ -212,4 +232,29 @@ case $cleanup_choice in
         ;;
 esac
 
+# Ask user if they want to install the website
+cmd=(dialog --menu "Install website?" 22 76 16)
+options=(
+   1 "Yes"
+   2 "No"
+)
+website_choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
+
+clear
+# Execute the chosen website installation command
+case $website_choice in
+    1)
+        wget https://github.com/hannajohnsona/dashboard/archive/refs/heads/main.zip -O /tmp/dashboard.zip
+        unzip /tmp/dashboard.zip -d /tmp/
+        sudo mkdir -p /var/www/html/dashboard/
+        sudo mv /tmp/dashboard-main/* /var/www/html/dashboard/
+        rm /tmp/dashboard.zip
+        rm -rf /tmp/dashboard-main
+        ;;
+    2)
+        echo "Skipping website installation"
+        ;;
+esac
+
 exit 0
+
