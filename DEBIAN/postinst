@@ -12,6 +12,27 @@ install_tailscale() {
     curl -fsSL https://tailscale.com/install.sh | sh
 }
 
+# Function to install yq based on architecture
+install_yq() {
+    case "$(uname -m)" in
+        "x86_64")
+            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ;;
+        "aarch64")
+            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ;;
+        "armv7l")
+            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ;;
+        "i386")
+            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_386 -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ;;
+        *)
+            echo "Unsupported architecture for yq installation"
+            ;;
+    esac
+}
+
 # Function to edit configuration file
 edit_config() {
     # Configuration files location
@@ -64,9 +85,27 @@ edit_config() {
     MODIFIED_DATA=$(cat $SELECTED_FILE)
 
     # Display the modified data
-    dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
+    #dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
 }
+# requirements menu for yq
+cmd=(dialog --menu "Choose requirements option:" 22 76 16)
+options=(   
+  1 "Install yq"
+  2 "None"
+)
+requirements_choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 
+clear 
+
+# execute the chosen requirements command
+case $requirements_choice in
+    1)
+        install_yq
+        ;;
+    2)
+        echo "Skipping Requirements"
+        ;;
+esac
 # Pre-install menu for ZeroTier, Tailscale, or None
 cmd=(dialog --menu "Choose the preinstall option:" 22 76 16)
 options=(

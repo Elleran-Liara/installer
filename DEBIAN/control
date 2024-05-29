@@ -3,6 +3,6 @@ Version: 1.0
 Section: base
 Priority: optional
 Architecture: all
-Depends: yq, libasio-dev, libncurses-dev, libssl-dev, cmake, dialog, gcc-arm-linux-gnueabihf, g++-arm-linux-gnueabihf
+Depends:libasio-dev, libncurses-dev, libssl-dev, cmake, dialog, gcc-arm-linux-gnueabihf, g++-arm-linux-gnueabihf
 Maintainer: Your Name <hanna@centrunk.net>
 Description: Custom package for compiling dvmhost with user choices
