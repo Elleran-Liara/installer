@@ -2,53 +2,40 @@
 
 set -e
 
-# Function to install ZeroTier
-install_zerotier() {
-    curl -s https://install.zerotier.com | sudo bash
-}
-
-# Function to install Tailscale
-install_tailscale() {
-    curl -fsSL https://tailscale.com/install.sh | sh
-}
-
 # Function to install yq based on architecture
 install_yq() {
     case "$(uname -m)" in
         "x86_64")
-            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ARCH="amd64"
             ;;
         "aarch64")
-            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ARCH="arm64"
             ;;
         "armv7l")
-            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ARCH="arm"
             ;;
         "i386")
-            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_386 -O /usr/bin/yq && chmod +x /usr/bin/yq
+            ARCH="386"
             ;;
         *)
             echo "Unsupported architecture for yq installation"
+            exit 1
             ;;
     esac
+    wget -q "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$ARCH" -O /usr/bin/yq && chmod +x /usr/bin/yq
 }
 
 # Function to edit configuration file
 edit_config() {
-    # Configuration files location
     CONFIG_DIR="/opt/centrunk/configs"
-
-    # Configuration files
     CONFIG_FILES=("configCC1.yml" "configVC1.yml" "configDVRS1.yml" "configCONV1.yml")
 
-    # Create a dialog menu
     CHOICE=$(dialog --menu "Select Configuration File" 15 50 4 \
     1 "${CONFIG_FILES[0]}" \
     2 "${CONFIG_FILES[1]}" \
     3 "${CONFIG_FILES[2]}" \
     4 "${CONFIG_FILES[3]}" 3>&1 1>&2 2>&3)
 
-    # Determine the selected file
     case $CHOICE in
         1) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[0]}" ;;
         2) SELECTED_FILE="${CONFIG_DIR}/${CONFIG_FILES[1]}" ;;
@@ -57,58 +44,42 @@ edit_config() {
         *) echo "Invalid choice"; exit 1 ;;
     esac
 
-    # Backup the original file before making changes
     cp $SELECTED_FILE "${SELECTED_FILE}.bak"
 
-    # Prompt for new ID, REST address, System Identity, Voice Channel Number REST address, and Site ID
     NEW_ID=$(dialog --inputbox "Enter the new ID:" 8 40 3>&1 1>&2 2>&3)
     NEW_REST_ADDRESS=$(dialog --inputbox "Enter the new REST Address:" 8 40 3>&1 1>&2 2>&3)
     NEW_SYSTEM_IDENTITY=$(dialog --inputbox "Enter the new System Identity:" 8 40 3>&1 1>&2 2>&3)
     NEW_VOICE_CH_REST_ADDRESS=$(dialog --inputbox "Enter the new Voice Channel Number REST Address:" 8 40 3>&1 1>&2 2>&3)
     NEW_SITE_ID=$(dialog --inputbox "Enter the new Site ID:" 8 40 3>&1 1>&2 2>&3)
+    NEW_NAC=$(dialog --inputbox "Enter the new NAC:" 8 40 3>&1 1>&2 2>&3)
 
-    # Check if any of the inputs are empty
-    if [ -z "$NEW_ID" ] || [ -z "$NEW_REST_ADDRESS" ] || [ -z "$NEW_SYSTEM_IDENTITY" ] || [ -z "$NEW_VOICE_CH_REST_ADDRESS" ] || [ -z "$NEW_SITE_ID" ]; then
+    if [ -z "$NEW_ID" ] || [ -z "$NEW_REST_ADDRESS" ] || [ -z "$NEW_SYSTEM_IDENTITY" ] || [ -z "$NEW_VOICE_CH_REST_ADDRESS" ] || [ -z "$NEW_SITE_ID" ] || [ -z "$NEW_NAC" ]; then
         dialog --msgbox "All fields are required. Exiting." 10 40
         clear
         exit 1
     fi
 
-    # Update the selected file with the new values using yq eval
     yq eval -i ".network.id = \"$NEW_ID\"" $SELECTED_FILE
     yq eval -i ".network.restAddress = \"$NEW_REST_ADDRESS\"" $SELECTED_FILE
     yq eval -i ".system.identity = \"$NEW_SYSTEM_IDENTITY\"" $SELECTED_FILE
-    yq eval -i ".voiceChNo.restAddress = \"$NEW_VOICE_CH_REST_ADDRESS\"" $SELECTED_FILE
-    yq eval -i ".config.siteId = \"$NEW_SITE_ID\"" $SELECTED_FILE
-
-    # Read back the modified data
-    MODIFIED_DATA=$(cat $SELECTED_FILE)
-
-    # Display the modified data
-    # dialog --msgbox "Modified Configuration:\n\n$MODIFIED_DATA" 20 80
+    yq eval -i ".system.config.voiceChNo[0].restAddress = \"$NEW_VOICE_CH_REST_ADDRESS\"" $SELECTED_FILE
+    yq eval -i ".system.config.siteId = \"$NEW_SITE_ID\"" $SELECTED_FILE
+    yq eval -i ".system.config.nac = \"$NEW_NAC\"" $SELECTED_FILE
 }
 
 # Function to install a website
 install_website() {
-    # Create necessary directories
-    mkdir -p /var/www/dashboard
-
-    # Download the GitHub repository as a ZIP file
-    wget https://github.com/hannajohnsona/dashboard/archive/refs/heads/main.zip
-
-    # Unzip the repository
-    unzip main.zip
-
-    # Move the contents to the target directory
-    mv dashboard-main/* /var/www/dashboard/
-
-    # Clean up
-    rm -rf dashboard-main main.zip
+    wget -q https://github.com/hannajohnsona/dashboard/archive/refs/heads/main.zip -O /tmp/dashboard.zip
+    unzip -q /tmp/dashboard.zip -d /tmp/
+    sudo mkdir -p /var/www/html/dashboard/
+    sudo mv /tmp/dashboard-main/* /var/www/html/dashboard/
+    rm /tmp/dashboard.zip
+    rm -rf /tmp/dashboard-main
 }
 
-# requirements menu for yq
+# Requirements menu for yq
 cmd=(dialog --menu "Choose requirements option:" 22 76 16)
-options=(   
+options=(
   1 "Install yq"
   2 "None"
 )
@@ -116,7 +87,6 @@ requirements_choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 
 clear 
 
-# execute the chosen requirements command
 case $requirements_choice in
     1)
         install_yq
@@ -126,44 +96,14 @@ case $requirements_choice in
         ;;
 esac
 
-# Pre-install menu for ZeroTier, Tailscale, or None
-cmd=(dialog --menu "Choose the preinstall option:" 22 76 16)
-options=(
-   1 "ZeroTier"
-   2 "Tailscale"
-   3 "None"
-)
-preinstall_choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
-
-clear
-
-# Execute the chosen preinstall command
-case $preinstall_choice in
-    1)
-        install_zerotier
-        ;;
-    2)
-        install_tailscale
-        ;;
-    3)
-        echo "Skipping preinstall"
-        ;;
-esac
-
-# Create necessary directories
 mkdir -p /opt/centrunk/installer
 cd /opt/centrunk/installer
 
-# Download the GitHub repository as a ZIP file
-wget https://github.com/DVMProject/dvmhost/archive/refs/heads/master.zip
+wget -q https://github.com/DVMProject/dvmhost/archive/refs/heads/master.zip
+unzip -q master.zip
 
-# Unzip the repository
-unzip master.zip
-
-# Move to the unzipped directory
 cd dvmhost-master
 
-# Use dialog to present choices to the user
 cmd=(dialog --menu "Choose the cross-compile option:" 22 76 16)
 options=(
    1 "CROSS_COMPILE_ARM"
@@ -176,11 +116,9 @@ choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 
 clear
 
-# Create build directory and move to it
 mkdir -p /opt/centrunk/installer/build
 cd /opt/centrunk/installer/build
 
-# Execute the chosen cmake command
 case $choice in
     1)
         cmake /opt/centrunk/installer/dvmhost-master .. -DCROSS_COMPILE_ARM=1
@@ -199,19 +137,14 @@ case $choice in
         ;;
 esac
 
-# If a compilation choice was made, compile the code
 if [[ $choice -ne 5 ]]; then
     make
-
-    # Move the binaries to the target directory
     mkdir -p /opt/centrunk/dvmhost/
     mv dvmhost dvmcmd /opt/centrunk/dvmhost/
 fi
 
-# Call the function to edit the configuration file
 edit_config
 
-# Ask user if they want to clean up the temporary files
 cmd=(dialog --menu "Cleanup temporary files?" 22 76 16)
 options=(
    1 "Yes"
@@ -221,18 +154,15 @@ cleanup_choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 
 clear
 
-# Cleanup based on user choice
 case $cleanup_choice in
     1)
-        rm -rf /opt/centrunk/installer/master.zip
-        rm -rf /opt/centrunk/installer/
+        rm -rf /opt/centrunk/installer/master.zip /opt/centrunk/installer/
         ;;
     2)
         echo "Skipping cleanup"
         ;;
 esac
 
-# Ask user if they want to install the website
 cmd=(dialog --menu "Install website?" 22 76 16)
 options=(
    1 "Yes"
@@ -241,15 +171,9 @@ options=(
 website_choice=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 
 clear
-# Execute the chosen website installation command
 case $website_choice in
     1)
-        wget https://github.com/hannajohnsona/dashboard/archive/refs/heads/main.zip -O /tmp/dashboard.zip
-        unzip /tmp/dashboard.zip -d /tmp/
-        sudo mkdir -p /var/www/html/dashboard/
-        sudo mv /tmp/dashboard-main/* /var/www/html/dashboard/
-        rm /tmp/dashboard.zip
-        rm -rf /tmp/dashboard-main
+        install_website
         ;;
     2)
         echo "Skipping website installation"
@@ -257,4 +181,3 @@ case $website_choice in
 esac
 
 exit 0
-
