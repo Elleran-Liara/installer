@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ 
 set -e
 
 # Function to install yq based on architecture
