@@ -1,15 +1,7 @@
 # DVMHost software installer packager.
 
-`dpkg-deb --build installer`
-`sudo dpkg -i installer.deb`
-
-##Go through the items and edit them until youre set and hit finsihed. Service will start and you'll be done
-Download releases
-how to run :
-*1:sudo apt install ./installer.deb
-
-*2:sudo debpkg -i installer.deb
-
-todo
-
-polish code
+Download the release and install using 
+`sudo apt install ./installer.deb`
+to upgrade remove the package
+`sudo apt remove centrunk` 
+installing through dpkg will skip dependencies and you'll have a bad time mkay.
