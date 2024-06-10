@@ -58,13 +58,19 @@ edit_config() {
             exit 1 
             ;;
     esac
-
-    NEW_ID=$(dialog --inputbox "Enter the new ID:" 8 40 3>&1 1>&2 2>&3)
+    DEFAULT_PORT="/dev/ttyAMA0"
+    
+    NEW_ID=$(dialog --inputbox "Enter the new NETWORK ID:" 8 40 3>&1 1>&2 2>&3)
     NEW_REST_ADDRESS=$(dialog --inputbox "Enter the new REST Address:" 8 40 3>&1 1>&2 2>&3)
+    NEW_REST_PASSWORD=$(dialog --inputbox "Enter the new REST PASSWORD:" 8 40 3>&1 1>&2 2>&3)
     NEW_SYSTEM_IDENTITY=$(dialog --inputbox "Enter the new System Identity:" 8 40 3>&1 1>&2 2>&3)
+    NEW_CH_CHANNO=$(dialog --inputbox "Enter the new Channel Number:" 8 40 3>&1 1>&2 2>&3)
+    NEW_VOICE_CH_CHANNO=$(dialog --inputbox "Enter the new Voice Channel Number:" 8 40 3>&1 1>&2 2>&3)
     NEW_VOICE_CH_REST_ADDRESS=$(dialog --inputbox "Enter the new Voice Channel Number REST Address:" 8 40 3>&1 1>&2 2>&3)
-    NEW_SITE_ID=$(dialog --inputbox "Enter the new Site ID:" 8 40 3>&1 1>&2 2>&3)
+    NEW_VOICE_CH_REST_PASSWORD=$(dialog --inputbox "Enter the new Voice Channel Number REST PASSWORD:" 8 40 3>&1 1>&2 2>&3)
     NEW_NAC=$(dialog --inputbox "Enter the new NAC:" 8 40 3>&1 1>&2 2>&3)
+    NEW_SITE_ID=$(dialog --inputbox "Enter the new Site ID:" 8 40 3>&1 1>&2 2>&3)
+    NEW_PORT=$(dialog --inputbox "Enter the new device Port" 8 40 "$DEFAULT_PORT" 3>&1 1>&2 2>&3 3>&-)
 
     if [ -z "$NEW_ID" ] || [ -z "$NEW_REST_ADDRESS" ] || [ -z "$NEW_SYSTEM_IDENTITY" ] || [ -z "$NEW_VOICE_CH_REST_ADDRESS" ] || [ -z "$NEW_SITE_ID" ] || [ -z "$NEW_NAC" ]; then
         dialog --msgbox "All fields are required. Exiting." 10 40
@@ -74,10 +80,15 @@ edit_config() {
 
     yq eval -i ".network.id = \"$NEW_ID\"" $SELECTED_FILE
     yq eval -i ".network.restAddress = \"$NEW_REST_ADDRESS\"" $SELECTED_FILE
+    yq eval -i ".network.restPassword = \"$NEW_REST_PASSWORD    \"" $SELECTED_FILE
     yq eval -i ".system.identity = \"$NEW_SYSTEM_IDENTITY\"" $SELECTED_FILE
+    yq eval -i ".system.config.channelNo = \"$NEW_CH_CHANNO\"" $SELECTED_FILE
+    yq eval -i ".system.config.voiceChNo[0].channelNo = \"$NEW_VOICE_CH_CHANNO\"" $SELECTED_FILE
     yq eval -i ".system.config.voiceChNo[0].restAddress = \"$NEW_VOICE_CH_REST_ADDRESS\"" $SELECTED_FILE
-    yq eval -i ".system.config.siteId = \"$NEW_SITE_ID\"" $SELECTED_FILE
+    yq eval -i ".system.config.voiceChNo[0].restPassword = \"$NEW_VOICE_CH_REST_PASSWORD\"" $SELECTED_FILE
     yq eval -i ".system.config.nac = \"$NEW_NAC\"" $SELECTED_FILE
+    yq eval -i ".system.config.siteId = \"$NEW_SITE_ID\"" $SELECTED_FILE
+    yq eval -i ".system.modem.protocol.uart.port = \"$NEW_PORT\"" $SELECTED_FILE
 
     create_service_file $SERVICE_NAME
 }
