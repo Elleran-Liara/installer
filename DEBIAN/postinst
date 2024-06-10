@@ -66,7 +66,7 @@ edit_config() {
     NEW_REST_ADDRESS=$(dialog --inputbox "Enter the new REST Address:" 8 40 3>&1 1>&2 2>&3)
     NEW_REST_PASSWORD=$(dialog --inputbox "Enter the new REST PASSWORD:" 8 40 3>&1 1>&2 2>&3)
     NEW_SYSTEM_IDENTITY=$(dialog --inputbox "Enter the new System Identity:" 8 40 3>&1 1>&2 2>&3)
-    NEW_CH_CHANID=$(dialog --inputbox "Enter the new Channel Number:" 8 40 3>&1 1>&2 2>&3)
+    NEW_CH_CHANID=$(dialog --inputbox "Enter the new Channel ID:" 8 40 3>&1 1>&2 2>&3)
     NEW_CH_CHANNO=$(dialog --inputbox "Enter the new Channel Number:" 8 40 3>&1 1>&2 2>&3)
     NEW_VOICE_CH_CHANNO=$(dialog --inputbox "Enter the new Voice Channel Number:" 8 40 3>&1 1>&2 2>&3)
     NEW_VOICE_CH_REST_ADDRESS=$(dialog --inputbox "Enter the new Voice Channel Number REST Address:" 8 40 3>&1 1>&2 2>&3)
