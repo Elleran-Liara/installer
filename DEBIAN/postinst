@@ -1,6 +1,8 @@
 #!/bin/bash
- 
+
 set -e
+git config http.postBuffer 524288000
+git config --global http.version HTTP/1.1
 
 # Function to install yq based on architecture
 install_yq() {
@@ -60,10 +62,11 @@ edit_config() {
     esac
     DEFAULT_PORT="/dev/ttyAMA0"
     
-    NEW_ID=$(dialog --inputbox "Enter the new NETWORK ID:" 8 40 3>&1 1>&2 2>&3)
+    NEW_ID=$(dialog --inputbox "Enter the new NODE ID:" 8 40 3>&1 1>&2 2>&3)
     NEW_REST_ADDRESS=$(dialog --inputbox "Enter the new REST Address:" 8 40 3>&1 1>&2 2>&3)
     NEW_REST_PASSWORD=$(dialog --inputbox "Enter the new REST PASSWORD:" 8 40 3>&1 1>&2 2>&3)
     NEW_SYSTEM_IDENTITY=$(dialog --inputbox "Enter the new System Identity:" 8 40 3>&1 1>&2 2>&3)
+    NEW_CH_CHANID=$(dialog --inputbox "Enter the new Channel Number:" 8 40 3>&1 1>&2 2>&3)
     NEW_CH_CHANNO=$(dialog --inputbox "Enter the new Channel Number:" 8 40 3>&1 1>&2 2>&3)
     NEW_VOICE_CH_CHANNO=$(dialog --inputbox "Enter the new Voice Channel Number:" 8 40 3>&1 1>&2 2>&3)
     NEW_VOICE_CH_REST_ADDRESS=$(dialog --inputbox "Enter the new Voice Channel Number REST Address:" 8 40 3>&1 1>&2 2>&3)
@@ -82,6 +85,7 @@ edit_config() {
     yq eval -i ".network.restAddress = \"$NEW_REST_ADDRESS\"" $SELECTED_FILE
     yq eval -i ".network.restPassword = \"$NEW_REST_PASSWORD    \"" $SELECTED_FILE
     yq eval -i ".system.identity = \"$NEW_SYSTEM_IDENTITY\"" $SELECTED_FILE
+    yq eval -i ".system.config.channelId = \"$NEW_CH_CHANID\"" $SELECTED_FILE
     yq eval -i ".system.config.channelNo = \"$NEW_CH_CHANNO\"" $SELECTED_FILE
     yq eval -i ".system.config.voiceChNo[0].channelNo = \"$NEW_VOICE_CH_CHANNO\"" $SELECTED_FILE
     yq eval -i ".system.config.voiceChNo[0].restAddress = \"$NEW_VOICE_CH_REST_ADDRESS\"" $SELECTED_FILE
